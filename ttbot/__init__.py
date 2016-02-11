@@ -41,11 +41,11 @@ def _convert_utf8(data):
 
 
 @inlineCallbacks
-def _make_request(token, method_name, method='get', params=None, files=None, **kwargs):
+def _make_request(token, method_name, method='get', params=None, data=None, files=None, **kwargs):
   request_url = API_URL + 'bot' + token + '/' + method_name
   params = _convert_utf8(params)
 
-  resp = yield treq.request(method, request_url, params=params, files=files, **kwargs)
+  resp = yield treq.request(method, request_url, params=params, data=data, files=files, **kwargs)
   result_json = yield _check_response(resp, method_name)
   returnValue(result_json)
 
@@ -73,8 +73,8 @@ def _check_response(resp, method_name):
 
 
 @inlineCallbacks
-def _request(token, method_name, method='get', params=None, files=None, **kwargs):
-  result_json = yield _make_request(token, method_name, method, params=params, files=files, **kwargs)
+def _request(token, method_name, method='get', params=None, data=None, files=None, **kwargs):
+  result_json = yield _make_request(token, method_name, method, params=params, data=data, files=files, **kwargs)
   returnValue(result_json['result'])
 
 
