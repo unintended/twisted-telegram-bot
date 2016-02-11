@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-import os
-
 from setuptools import setup, find_packages
-from setuptools.command.develop import develop
-from setuptools.command.install import install
 
 packages = find_packages()
 
@@ -14,6 +10,8 @@ setup(
   description="Asynchronous Twisted-based Telegram Bot API for Python",
   author='unintended',
   author_email='unintended.github@gmail.com',
+  url='https://github.com/unintended/twisted-telegram-bot',
+  license='MIT',
   packages=packages,
   install_requires=[
     'twisted',
