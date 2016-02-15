@@ -142,6 +142,7 @@ class TelegramBot:
         new_chosen_inline_results.append(chosen_inline_result)
       elif 'message' in update.keys():
         msg = Message.de_json(update['message'])
+        msg.bot_name = self.name
         try:
           log.debug("{user}: {msg}", user=msg.from_user.id, msg=msg.text)
         except AttributeError:

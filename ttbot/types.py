@@ -130,6 +130,7 @@ class Message(JsonDeserializable):
     self.from_user = from_user
     self.message_id = message_id
     self.content_type = content_type
+    self.bot_name = None
     for key in options:
       setattr(self, key, options[key])
 
