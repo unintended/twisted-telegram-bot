@@ -93,6 +93,7 @@ class TelegramBot:
     self.running = False
     self.inline_query_handler = None
     self.chosen_inline_result_handler = None
+    self.botan = None
 
   def method_url(self, method):
     return API_URL + 'bot' + self.token + '/' + method
@@ -143,11 +144,6 @@ class TelegramBot:
       elif 'message' in update.keys():
         msg = Message.de_json(update['message'])
         msg.bot_name = self.name
-        try:
-          log.debug("{user}: {msg}", user=msg.from_user.id, msg=msg.text)
-        except AttributeError:
-          log.debug("Empty message: {msg}",
-                    msg=json.dumps(msg, skipkeys=True, ensure_ascii=False, default=lambda o: o.__dict__))
         if not msg.from_user.id in new_messages_ids:
           new_messages.append(msg)
           new_messages_ids.add(msg.from_user.id)
