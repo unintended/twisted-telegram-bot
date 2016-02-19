@@ -204,7 +204,7 @@ class TelegramBot:
   def _notify_message_next_handler(self, message):
     handler = self.message_next_handlers.pop(message.chat.id, None)
     if handler is not None:
-      handler(message)
+      handler(message, self)
       return True
     return False
 
