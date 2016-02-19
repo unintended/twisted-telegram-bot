@@ -3,6 +3,7 @@ import collections
 import re
 
 import treq
+from cachetools import LRUCache
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.logger import Logger
@@ -85,10 +86,9 @@ class TelegramBot:
     self.agent = Agent(reactor)
     self.last_update_id = -1
     self.message_handlers = []
-    self.message_subscribers_messages = []
-    self.message_subscribers_callbacks = []
+    self.message_subscribers = LRUCache(maxsize=10000)
     self.message_prehandlers = []
-    self.message_next_handlers = {}
+    self.message_next_handlers = LRUCache(maxsize=1000)
     self.retry_update = 0
     self.running = False
     self.inline_query_handler = None
@@ -197,17 +197,14 @@ class TelegramBot:
       if not hasattr(message, 'reply_to_message'):
         continue
 
-      reply_msg_id = message.reply_to_message.message_id
-      if reply_msg_id in self.message_subscribers_messages:
-        index = self.message_subscribers_messages.index(reply_msg_id)
-        self.message_subscribers_callbacks[index](message, self)
-
-        del self.message_subscribers_messages[index]
-        del self.message_subscribers_callbacks[index]
+      handler = self.message_subscribers.pop(message.reply_to_message.message_id, None)
+      if handler is not None:
+        handler(message, self)
 
   def _notify_message_next_handler(self, message):
-    if self.message_next_handlers.has_key(message.chat.id):
-      self.message_next_handlers.pop(message.chat.id)(message)
+    handler = self.message_next_handlers.pop(message.chat.id, None)
+    if handler is not None:
+      handler(message)
       return True
     return False
 
@@ -320,11 +317,7 @@ class TelegramBot:
     return _make_request(self.token, method, 'POST', params=payload)
 
   def register_for_reply(self, message, callback):
-    self.message_subscribers_messages.insert(0, message.message_id)
-    self.message_subscribers_callbacks.insert(0, callback)
-    if len(self.message_subscribers_messages) > 10000:
-      self.message_subscribers_messages.pop()
-      self.message_subscribers_callbacks.pop()
+    self.message_subscribers[message.message_id] = callback
 
   def register_next_chat_handler(self, chat_id, callback):
     self.message_next_handlers[chat_id] = callback
