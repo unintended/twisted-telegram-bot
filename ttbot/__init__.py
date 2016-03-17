@@ -161,13 +161,14 @@ class TelegramBot:
       self.process_chosen_inline_query(chosen_inline_result)
 
   def process_new_messages(self, new_messages):
+    self._notify_message_prehandlers(new_messages)
+
     not_processed = []
     for message in new_messages:
       if not self._notify_message_next_handler(message):
         not_processed.append(message)
     new_messages = not_processed
 
-    self._notify_message_prehandlers(new_messages)
     self._notify_command_handlers(new_messages)
     self._notify_message_subscribers(new_messages)
 
