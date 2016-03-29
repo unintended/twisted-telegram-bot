@@ -42,11 +42,11 @@ def _convert_utf8(data):
 
 
 @inlineCallbacks
-def _make_request(token, method_name, method='get', params=None, data=None, files=None, **kwargs):
+def _make_request(token, method_name, method='get', params=None, data=None, files=None, timeout=10, **kwargs):
   request_url = API_URL + 'bot' + token + '/' + method_name
   params = _convert_utf8(params)
 
-  resp = yield treq.request(method, request_url, params=params, data=data, files=files, **kwargs)
+  resp = yield treq.request(method, request_url, params=params, data=data, files=files, timeout=timeout, **kwargs)
   result_json = yield _check_response(resp, method_name)
   returnValue(result_json)
 
@@ -74,8 +74,10 @@ def _check_response(resp, method_name):
 
 
 @inlineCallbacks
-def _request(token, method_name, method='get', params=None, data=None, files=None, **kwargs):
-  result_json = yield _make_request(token, method_name, method, params=params, data=data, files=files, **kwargs)
+def _request(token, method_name, method='get', params=None, data=None, files=None, timeout=10, **kwargs):
+  result_json = yield _make_request(token, method_name, method,
+                                    params=params, data=data, files=files, timeout=timeout,
+                                    **kwargs)
   returnValue(result_json['result'])
 
 
@@ -179,7 +181,6 @@ class TelegramBot:
   def process_chosen_inline_query(self, chosen_inline_result):
     if self.chosen_inline_result_handler:
       self.chosen_inline_result_handler(chosen_inline_result, self)
-
 
   def _notify_message_prehandlers(self, new_messages):
     for message in new_messages:
