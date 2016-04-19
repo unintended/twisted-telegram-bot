@@ -9,7 +9,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.logger import Logger
 from twisted.web.client import Agent
 
-from ttbot.types import Message, InlineQuery, ChosenInlineResult
+from ttbot.types import Message, InlineQuery, ChosenInlineResult, JsonSerializable
 
 API_URL = r"https://api.telegram.org/"
 
@@ -264,7 +264,10 @@ class TelegramBot:
     if reply_to_message_id:
       payload['reply_to_message_id'] = reply_to_message_id
     if reply_markup:
-      payload['reply_markup'] = json.dumps(reply_markup)
+      if isinstance(reply_markup, JsonSerializable):
+        payload['reply_markup'] = reply_markup.to_json()
+      elif isinstance(reply_markup, dict):
+        payload['reply_markup'] = json.dumps(reply_markup)
     if parse_mode:
       payload['parse_mode'] = parse_mode
     request = yield _request(self.token, method, 'POST', params=payload)

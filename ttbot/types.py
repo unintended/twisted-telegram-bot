@@ -1,13 +1,9 @@
 import json
 
 
-def dumps(obj):
-  return json.dumps(obj, ensure_ascii=False)
-
-
 class JsonSerializable(object):
-  def to_json(self):
-    return dumps(self.to_json_dict())
+  def to_json(self, ensure_ascii=False):
+    return json.dumps(self.to_json_dict(), ensure_ascii=ensure_ascii)
 
   def to_json_dict(self):
     raise NotImplementedError
@@ -364,3 +360,23 @@ class GroupChat(JsonDeserializable):
   def __init__(self, id, title):
     self.id = id
     self.title = title
+
+
+class InlineKeyboardMarkup(JsonSerializable):
+  def to_json_dict(self):
+    return {'inline_keyboard': [[button.to_json_dict() for button in row] for row in self.buttons]}
+
+  def __init__(self, buttons):
+    self.buttons = buttons
+
+
+class InlineKeyboardButton(JsonSerializable):
+  def to_json_dict(self):
+    return {k: v for k, v in self.__dict__.items() if v is not None}
+
+  def __init__(self, text, url=None, callback_data=None, switch_inline_query=None):
+    super(InlineKeyboardButton, self).__init__()
+    self.text = text
+    self.url = url
+    self.callback_data = callback_data
+    self.switch_inline_query = switch_inline_query
