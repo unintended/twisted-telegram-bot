@@ -233,9 +233,9 @@ class TelegramBot:
   def _test_message_handler(message_handler, message):
     if message.content_type not in message_handler['content_types']:
       return False
-    cmd = extract_command(message.text)
-    if cmd:
-      if 'commands' in message_handler and message.content_type == 'text':
+    if 'commands' in message_handler and message.content_type == 'text':
+      cmd = extract_command(message.text)
+      if cmd:
         for command_pattern in message_handler['commands']:
           if not command_pattern.endswith('$'):
             command_pattern += '$'
