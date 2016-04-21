@@ -15,6 +15,7 @@ API_URL = r"https://api.telegram.org/"
 
 log = Logger()
 
+PM_MARKDOWN='markdown'
 
 def is_string(var):
   return isinstance(var, basestring)
