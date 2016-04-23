@@ -290,7 +290,8 @@ class TelegramBot:
                  performer=None,
                  title=None,
                  reply_to_message_id=None,
-                 reply_markup=None):
+                 reply_markup=None,
+                 timeout=30):
     method = r'sendAudio'
 
     payload = {'chat_id': chat_id}
@@ -310,7 +311,7 @@ class TelegramBot:
     # if reply_markup:
     #   payload['reply_markup'] = _convert_markup(reply_markup)
 
-    request = yield _request(self.token, method, 'POST', params=payload, files=files)
+    request = yield _request(self.token, method, 'POST', params=payload, files=files, timeout=timeout)
     returnValue(Message.de_json(request))
 
   def reply_to(self, message, text, **kwargs):
