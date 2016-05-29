@@ -39,6 +39,7 @@ class User(JsonDeserializable):
     self.first_name = first_name
     self.username = username
     self.last_name = last_name
+    self.type = 'private'
 
 
 class Message(JsonDeserializable):
@@ -108,7 +109,7 @@ class Message(JsonDeserializable):
 
   @classmethod
   def parse_chat(cls, chat):
-    if 'first_name' not in chat:
+    if chat['type'] != 'private':
       return GroupChat.de_json(chat)
     else:
       return User.de_json(chat)
@@ -220,6 +221,27 @@ class ChosenInlineResult(JsonDeserializable):
     from_user = User.de_json(obj['from'])
     query = obj['query']
     return ChosenInlineResult(result_id, from_user, query)
+
+
+class CallbackQuery(JsonDeserializable):
+  def __init__(self, query_id, from_user, data, message, inline_message_id):
+    self.query_id = query_id
+    self.from_user = from_user
+    self.data = data
+    self.message = message
+    self.inline_message_id = inline_message_id
+
+  @classmethod
+  def de_json(cls, json_string):
+    obj = cls.check_json(json_string)
+    from_user = User.de_json(obj['from'])
+    message = None
+    inline_message_id = None
+    if 'message' in obj.keys():
+      message = Message.de_json(obj['message'])
+    elif 'inline_message_id' in obj.keys():
+      inline_message_id = obj['inline_message_id']
+    return CallbackQuery(obj['id'], from_user, obj['data'], message, inline_message_id)
 
 
 class Document(JsonDeserializable):
@@ -355,11 +377,13 @@ class GroupChat(JsonDeserializable):
     obj = cls.check_json(json_string)
     id = obj['id']
     title = obj['title']
-    return GroupChat(id, title)
+    type = obj['type']
+    return GroupChat(id, title, type)
 
-  def __init__(self, id, title):
+  def __init__(self, id, title, type):
     self.id = id
     self.title = title
+    self.type = type
 
 
 class InlineKeyboardMarkup(JsonSerializable):

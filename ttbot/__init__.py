@@ -9,7 +9,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.logger import Logger
 from twisted.web.client import Agent
 
-from ttbot.types import Message, InlineQuery, ChosenInlineResult, JsonSerializable
+from ttbot.types import Message, InlineQuery, ChosenInlineResult, JsonSerializable, CallbackQuery
 
 API_URL = r"https://api.telegram.org/"
 
@@ -95,6 +95,7 @@ class TelegramBot:
     self.retry_update = 0
     self.running = False
     self.inline_query_handler = None
+    self.callback_query_handler = None
     self.chosen_inline_result_handler = None
     self.botan = None
 
@@ -131,8 +132,6 @@ class TelegramBot:
 
     new_messages_ids = set()
     new_messages = []
-    new_inline_queries = []
-    new_chosen_inline_results = []
     for update in updates:
       log.debug("New update. ID: {update_id}", update_id=update['update_id'])
       if update['update_id'] > self.last_update_id:
@@ -140,16 +139,19 @@ class TelegramBot:
 
       if 'inline_query' in update.keys():
         inline_query = InlineQuery.de_json(update['inline_query'])
-        new_inline_queries.append(inline_query)
+        self.process_inline_query(inline_query)
       elif 'chosen_inline_result' in update.keys():
         chosen_inline_result = ChosenInlineResult.de_json(update['chosen_inline_result'])
-        new_chosen_inline_results.append(chosen_inline_result)
+        self.process_chosen_inline_query(chosen_inline_result)
       elif 'message' in update.keys():
         msg = Message.de_json(update['message'])
         msg.bot_name = self.name
         if not msg.from_user.id in new_messages_ids:
           new_messages.append(msg)
           new_messages_ids.add(msg.from_user.id)
+      elif 'callback_query' in update.keys():
+        callback_query = CallbackQuery.de_json(update['callback_query'])
+        self.process_callback_query(callback_query)
       else:
         log.debug("Unknown update type: {update}",
                   update=json.dumps(update, skipkeys=True, ensure_ascii=False, default=lambda o: o.__dict__))
@@ -157,11 +159,10 @@ class TelegramBot:
     if len(new_messages) > 0:
       self.process_new_messages(new_messages)
 
-    for inline_query in new_inline_queries:
-      self.process_inline_query(inline_query)
 
-    for chosen_inline_result in new_chosen_inline_results:
-      self.process_chosen_inline_query(chosen_inline_result)
+  def process_callback_query(self, callback_query):
+    if self.callback_query_handler:
+      self.callback_query_handler(callback_query, self)
 
   def process_new_messages(self, new_messages):
     self._notify_message_prehandlers(new_messages)
@@ -282,6 +283,26 @@ class TelegramBot:
       'is_personal': personal
     })
     returnValue(request)
+
+  @inlineCallbacks
+  def edit_message_text(self, chat_id, message_id, text,
+                        parse_mode=None,
+                        disable_web_page_preview=None,
+                        reply_markup=None):
+    method = r'editMessageText'
+
+    payload = {'chat_id': str(chat_id), 'message_id':str(message_id), 'text': text}
+    if disable_web_page_preview:
+      payload['disable_web_page_preview'] = disable_web_page_preview
+    if reply_markup:
+      if isinstance(reply_markup, JsonSerializable):
+        payload['reply_markup'] = reply_markup.to_json()
+      elif isinstance(reply_markup, dict):
+        payload['reply_markup'] = json.dumps(reply_markup)
+    if parse_mode:
+      payload['parse_mode'] = parse_mode
+    request = yield _request(self.token, method, 'POST', params=payload)
+    returnValue(Message.de_json(request))
 
   @inlineCallbacks
   def send_audio(self, chat_id, audio,
