@@ -15,7 +15,8 @@ API_URL = r"https://api.telegram.org/"
 
 log = Logger()
 
-PM_MARKDOWN='markdown'
+PM_MARKDOWN = 'markdown'
+
 
 def is_string(var):
   return isinstance(var, basestring)
@@ -159,7 +160,6 @@ class TelegramBot:
     if len(new_messages) > 0:
       self.process_new_messages(new_messages)
 
-
   def process_callback_query(self, callback_query):
     if self.callback_query_handler:
       self.callback_query_handler(callback_query, self)
@@ -291,7 +291,7 @@ class TelegramBot:
                         reply_markup=None):
     method = r'editMessageText'
 
-    payload = {'chat_id': str(chat_id), 'message_id':str(message_id), 'text': text}
+    payload = {'chat_id': str(chat_id), 'message_id': str(message_id), 'text': text}
     if disable_web_page_preview:
       payload['disable_web_page_preview'] = disable_web_page_preview
     if reply_markup:
@@ -303,6 +303,20 @@ class TelegramBot:
       payload['parse_mode'] = parse_mode
     request = yield _request(self.token, method, 'POST', params=payload)
     returnValue(Message.de_json(request))
+
+  @inlineCallbacks
+  def answer_callback_query(self, callback_query_id,
+                            text=None,
+                            show_alert=None):
+    method = r'answerCallbackQuery'
+
+    payload = {'callback_query_id': str(callback_query_id)}
+    if text:
+      payload['text'] = text
+    if show_alert:
+      payload['show_alert'] = show_alert
+    request = yield _request(self.token, method, 'POST', params=payload)
+    returnValue(request)
 
   @inlineCallbacks
   def send_audio(self, chat_id, audio,
