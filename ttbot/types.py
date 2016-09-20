@@ -24,6 +24,18 @@ class JsonDeserializable(object):
       raise ValueError("Invalid json type: %s" % type(json_obj))
 
 
+class File(JsonDeserializable):
+  @classmethod
+  def de_json(cls, json_string):
+    obj = cls.check_json(json_string)
+    return File(obj['file_id'], obj.get('file_size', 0), obj.get('file_path'))
+
+  def __init__(self, id, size, path):
+    self.id = id
+    self.size = size
+    self.path = path
+
+
 class User(JsonDeserializable):
   @classmethod
   def de_json(cls, json_string):

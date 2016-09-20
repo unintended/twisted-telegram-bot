@@ -9,7 +9,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.logger import Logger
 from twisted.web.client import Agent
 
-from ttbot.types import Message, InlineQuery, ChosenInlineResult, JsonSerializable, CallbackQuery
+from ttbot.types import Message, InlineQuery, ChosenInlineResult, JsonSerializable, CallbackQuery, File
 
 API_URL = r"https://api.telegram.org/"
 
@@ -317,6 +317,20 @@ class TelegramBot:
       payload['show_alert'] = show_alert
     request = yield _request(self.token, method, 'POST', params=payload)
     returnValue(request)
+
+  @inlineCallbacks
+  def get_file(self, file_id):
+    method = r'getFile'
+
+    payload = {'file_id': str(file_id)}
+
+    request = yield _request(self.token, method, 'POST', params=payload)
+    returnValue(File.de_json(request))
+
+
+  def get_file_url(self, file):
+    return "https://api.telegram.org/file/bot%s/%s" % (self.token, file.path)
+
 
   @inlineCallbacks
   def send_audio(self, chat_id, audio,
