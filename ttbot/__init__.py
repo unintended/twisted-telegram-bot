@@ -131,7 +131,6 @@ class TelegramBot:
     payload = {'timeout': 20, 'offset': self.last_update_id + 1}
     updates = yield _request(self.token, 'getUpdates', params=payload, timeout=25)
 
-    new_messages_ids = set()
     new_messages = []
     for update in updates:
       log.debug("New update. ID: {update_id}", update_id=update['update_id'])
@@ -147,9 +146,7 @@ class TelegramBot:
       elif 'message' in update.keys():
         msg = Message.de_json(update['message'])
         msg.bot_name = self.name
-        if not msg.from_user.id in new_messages_ids:
-          new_messages.append(msg)
-          new_messages_ids.add(msg.from_user.id)
+        new_messages.append(msg)
       elif 'callback_query' in update.keys():
         callback_query = CallbackQuery.de_json(update['callback_query'])
         self.process_callback_query(callback_query)
