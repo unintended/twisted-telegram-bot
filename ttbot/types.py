@@ -59,7 +59,9 @@ class Message(JsonDeserializable):
   def de_json(cls, json_string):
     obj = cls.check_json(json_string)
     message_id = obj['message_id']
-    from_user = User.de_json(obj['from'])
+    from_user = None
+    if 'from' in obj.keys():
+      from_user = User.de_json(obj['from'])
     chat = Message.parse_chat(obj['chat'])
     date = obj['date']
     content_type = None
