@@ -9,7 +9,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.logger import Logger
 from twisted.web.client import Agent
 
-from ttbot.types import Message, InlineQuery, ChosenInlineResult, JsonSerializable, CallbackQuery, File
+from ttbot.types import Message, InlineQuery, ChosenInlineResult, JsonSerializable, CallbackQuery, File, ChannelPost
 
 API_URL = r"https://api.telegram.org/"
 
@@ -98,6 +98,7 @@ class TelegramBot:
     self.inline_query_handler = None
     self.callback_query_handler = None
     self.chosen_inline_result_handler = None
+    self.channel_post_handler = None
     self.botan = None
 
   def method_url(self, method):
@@ -150,12 +151,18 @@ class TelegramBot:
       elif 'callback_query' in update.keys():
         callback_query = CallbackQuery.de_json(update['callback_query'])
         self.process_callback_query(callback_query)
+      elif 'channel_post' in update.keys():
+        self.process_channel_post(ChannelPost(Message.de_json(update['message'])))
       else:
         log.debug("Unknown update type: {update}",
                   update=json.dumps(update, skipkeys=True, ensure_ascii=False, default=lambda o: o.__dict__))
 
     if len(new_messages) > 0:
       self.process_new_messages(new_messages)
+
+  def process_channel_post(self, channel_post):
+    if self.channel_post_handler:
+      self.channel_post_handler(channel_post, self)
 
   def process_callback_query(self, callback_query):
     if self.callback_query_handler:

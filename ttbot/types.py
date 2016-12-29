@@ -416,3 +416,8 @@ class InlineKeyboardButton(JsonSerializable):
     self.url = url
     self.callback_data = callback_data
     self.switch_inline_query = switch_inline_query
+
+
+class ChannelPost:
+  def __init__(self, message):
+    self.message = message
