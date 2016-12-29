@@ -152,7 +152,7 @@ class TelegramBot:
         callback_query = CallbackQuery.de_json(update['callback_query'])
         self.process_callback_query(callback_query)
       elif 'channel_post' in update.keys():
-        self.process_channel_post(ChannelPost(Message.de_json(update['message'])))
+        self.process_channel_post(ChannelPost(Message.de_json(update['channel_post'])))
       else:
         log.debug("Unknown update type: {update}",
                   update=json.dumps(update, skipkeys=True, ensure_ascii=False, default=lambda o: o.__dict__))
