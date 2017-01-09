@@ -280,11 +280,12 @@ class TelegramBot:
     returnValue(Message.de_json(request))
 
   @inlineCallbacks
-  def answer_to_inline_query(self, query_id, results, personal=False):
+  def answer_to_inline_query(self, query_id, results, personal=False, offset=''):
     request = yield _request(self.token, 'answerInlineQuery', 'POST', params={
       'inline_query_id': str(query_id),
       'results': json.dumps(results, ensure_ascii=False),
-      'is_personal': personal
+      'is_personal': personal,
+      'offset': offset
     })
     returnValue(request)
 
