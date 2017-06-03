@@ -132,7 +132,7 @@ class TelegramBot:
   def get_update(self, timeout=20):
     payload = {'timeout': timeout, 'offset': self.last_update_id + 1}
     if self.allowed_updates:
-      payload['allowed_updates'] = ','.join(self.allowed_updates)
+      payload['allowed_updates'] = self.allowed_updates
     updates = yield _request(self.token, 'getUpdates', params=payload, timeout=25)
 
     new_messages = []
