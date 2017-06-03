@@ -84,16 +84,17 @@ def _request(token, method_name, method='get', params=None, data=None, files=Non
 
 
 class TelegramBot:
-  def __init__(self, token, name):
+  def __init__(self, token, name, skip_offset=False, allowed_updates=None):
     self.name = name
     self.token = token
     self.agent = Agent(reactor)
-    self.last_update_id = -1
+    self.last_update_id = -2 if skip_offset else -1
     self.message_handlers = []
     self.message_subscribers = LRUCache(maxsize=10000)
     self.message_prehandlers = []
     self.message_next_handlers = LRUCache(maxsize=1000)
     self.retry_update = 0
+    self.allowed_updates = allowed_updates
     self.running = False
     self.inline_query_handler = None
     self.callback_query_handler = None
@@ -128,8 +129,10 @@ class TelegramBot:
     self.running = False
 
   @inlineCallbacks
-  def get_update(self):
-    payload = {'timeout': 20, 'offset': self.last_update_id + 1}
+  def get_update(self, timeout=20):
+    payload = {'timeout': timeout, 'offset': self.last_update_id + 1}
+    if self.allowed_updates:
+      payload['allowed_updates'] = ','.join(self.allowed_updates)
     updates = yield _request(self.token, 'getUpdates', params=payload, timeout=25)
 
     new_messages = []
