@@ -83,6 +83,13 @@ def _request(token, method_name, method='get', params=None, data=None, files=Non
   returnValue(result_json['result'])
 
 
+def _convert_markup(reply_markup):
+  if isinstance(reply_markup, JsonSerializable):
+    return reply_markup.to_json()
+  elif isinstance(reply_markup, dict):
+    return json.dumps(reply_markup)
+
+
 class TelegramBot:
   def __init__(self, token, name, skip_offset=False, allowed_updates=None):
     self.name = name
@@ -273,10 +280,7 @@ class TelegramBot:
     if reply_to_message_id:
       payload['reply_to_message_id'] = reply_to_message_id
     if reply_markup:
-      if isinstance(reply_markup, JsonSerializable):
-        payload['reply_markup'] = reply_markup.to_json()
-      elif isinstance(reply_markup, dict):
-        payload['reply_markup'] = json.dumps(reply_markup)
+      payload['reply_markup'] = _convert_markup(reply_markup)
     if parse_mode:
       payload['parse_mode'] = parse_mode
     request = yield _request(self.token, method, 'POST', params=payload)
@@ -365,8 +369,8 @@ class TelegramBot:
       payload['title'] = title
     if reply_to_message_id:
       payload['reply_to_message_id'] = reply_to_message_id
-    # if reply_markup:
-    #   payload['reply_markup'] = _convert_markup(reply_markup)
+    if reply_markup:
+      payload['reply_markup'] = _convert_markup(reply_markup)
 
     request = yield _request(self.token, method, 'POST', params=payload, files=files, timeout=timeout)
     returnValue(Message.de_json(request))
