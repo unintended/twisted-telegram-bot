@@ -6,7 +6,7 @@ packages = find_packages()
 
 setup(
   name='twisted-telegram-bot',
-  version="1.2.6",
+  version="1.2.7",
   description="Asynchronous Twisted-based Telegram Bot API for Python",
   author='unintended',
   author_email='unintended.github@gmail.com',
