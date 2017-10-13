@@ -108,6 +108,7 @@ class TelegramBot:
     self.chosen_inline_result_handler = None
     self.channel_post_handler = None
     self.botan = None
+    self._noisy = False
 
   def method_url(self, method):
     return API_URL + 'bot' + self.token + '/' + method
@@ -144,7 +145,8 @@ class TelegramBot:
 
     new_messages = []
     for update in updates:
-      log.debug("New update. ID: {update_id}", update_id=update['update_id'])
+      if self._noisy:
+        log.debug("New update. ID: {update_id}", update_id=update['update_id'])
       if update['update_id'] > self.last_update_id:
         self.last_update_id = update['update_id']
 
