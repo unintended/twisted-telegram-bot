@@ -352,6 +352,7 @@ class TelegramBot:
                  duration=None,
                  performer=None,
                  title=None,
+                 caption=None,
                  reply_to_message_id=None,
                  reply_markup=None,
                  timeout=30):
@@ -369,6 +370,8 @@ class TelegramBot:
       payload['performer'] = performer
     if title:
       payload['title'] = title
+    if caption:
+      payload['caption'] = caption
     if reply_to_message_id:
       payload['reply_to_message_id'] = reply_to_message_id
     if reply_markup:
