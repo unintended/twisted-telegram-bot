@@ -289,13 +289,22 @@ class TelegramBot:
     returnValue(Message.de_json(request))
 
   @inlineCallbacks
-  def answer_to_inline_query(self, query_id, results, personal=False, next_offset=''):
-    request = yield _request(self.token, 'answerInlineQuery', 'POST', params={
+  def answer_to_inline_query(self, query_id, results,
+                             personal=False,
+                             next_offset='',
+                             switch_pm_text=None,
+                             switch_pm_parameter=None):
+    payload = {
       'inline_query_id': str(query_id),
       'results': json.dumps(results, ensure_ascii=False),
       'is_personal': personal,
       'next_offset': next_offset
-    })
+    }
+    if switch_pm_text:
+      payload['switch_pm_text'] = switch_pm_text
+    if switch_pm_parameter:
+      payload['switch_pm_parameter'] = switch_pm_parameter
+    request = yield _request(self.token, 'answerInlineQuery', 'POST', params=payload)
     returnValue(request)
 
   @inlineCallbacks
@@ -341,10 +350,8 @@ class TelegramBot:
     request = yield _request(self.token, method, 'POST', params=payload)
     returnValue(File.de_json(request))
 
-
   def get_file_url(self, file):
     return "https://api.telegram.org/file/bot%s/%s" % (self.token, file.path)
-
 
   @inlineCallbacks
   def send_audio(self, chat_id, audio,
