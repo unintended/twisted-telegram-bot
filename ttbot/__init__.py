@@ -327,6 +327,15 @@ class TelegramBot:
     request = yield _request(self.token, method, 'POST', params=payload)
     returnValue(Message.de_json(request))
 
+
+  @inlineCallbacks
+  def delete_message(self, chat_id, message_id):
+    method = r'deleteMessage'
+
+    payload = {'chat_id': str(chat_id), 'message_id': str(message_id)}
+    request = yield _request(self.token, method, 'POST', params=payload)
+    returnValue(request)
+
   @inlineCallbacks
   def answer_callback_query(self, callback_query_id,
                             text=None,
