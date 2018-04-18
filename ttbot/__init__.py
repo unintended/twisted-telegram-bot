@@ -7,7 +7,6 @@ from cachetools import LRUCache
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.logger import Logger
-from twisted.web.client import Agent
 
 from ttbot.types import Message, InlineQuery, ChosenInlineResult, JsonSerializable, CallbackQuery, File, ChannelPost
 
@@ -44,16 +43,6 @@ def _convert_utf8(data):
 
 
 @inlineCallbacks
-def _make_request(token, method_name, method='get', params=None, data=None, files=None, timeout=10, **kwargs):
-  request_url = API_URL + 'bot' + token + '/' + method_name
-  params = _convert_utf8(params)
-
-  resp = yield treq.request(method, request_url, params=params, data=data, files=files, timeout=timeout, **kwargs)
-  result_json = yield _check_response(resp, method_name)
-  returnValue(result_json)
-
-
-@inlineCallbacks
 def _check_response(resp, method_name):
   if resp.code != 200:
     error_text = yield resp.text()
@@ -75,14 +64,6 @@ def _check_response(resp, method_name):
   returnValue(result_json)
 
 
-@inlineCallbacks
-def _request(token, method_name, method='get', params=None, data=None, files=None, timeout=10, **kwargs):
-  result_json = yield _make_request(token, method_name, method,
-                                    params=params, data=data, files=files, timeout=timeout,
-                                    **kwargs)
-  returnValue(result_json['result'])
-
-
 def _convert_markup(reply_markup):
   if isinstance(reply_markup, JsonSerializable):
     return reply_markup.to_json()
@@ -91,10 +72,10 @@ def _convert_markup(reply_markup):
 
 
 class TelegramBot:
-  def __init__(self, token, name, skip_offset=False, allowed_updates=None):
+  def __init__(self, token, name, skip_offset=False, allowed_updates=None, agent=None):
     self.name = name
     self.token = token
-    self.agent = Agent(reactor)
+    self.agent = agent
     self.last_update_id = -2 if skip_offset else -1
     self.message_handlers = []
     self.message_subscribers = LRUCache(maxsize=10000)
@@ -141,7 +122,7 @@ class TelegramBot:
     payload = {'timeout': timeout, 'offset': self.last_update_id + 1}
     if self.allowed_updates:
       payload['allowed_updates'] = self.allowed_updates
-    updates = yield _request(self.token, 'getUpdates', params=payload, timeout=25)
+    updates = yield self._request('getUpdates', params=payload, timeout=25)
 
     new_messages = []
     for update in updates:
@@ -285,7 +266,7 @@ class TelegramBot:
       payload['reply_markup'] = _convert_markup(reply_markup)
     if parse_mode:
       payload['parse_mode'] = parse_mode
-    request = yield _request(self.token, method, 'POST', params=payload)
+    request = yield self._request(method, 'POST', params=payload)
     returnValue(Message.de_json(request))
 
   @inlineCallbacks
@@ -304,7 +285,7 @@ class TelegramBot:
       payload['switch_pm_text'] = switch_pm_text
     if switch_pm_parameter:
       payload['switch_pm_parameter'] = switch_pm_parameter
-    request = yield _request(self.token, 'answerInlineQuery', 'POST', params=payload)
+    request = yield self._request('answerInlineQuery', 'POST', params=payload)
     returnValue(request)
 
   @inlineCallbacks
@@ -324,7 +305,7 @@ class TelegramBot:
         payload['reply_markup'] = json.dumps(reply_markup)
     if parse_mode:
       payload['parse_mode'] = parse_mode
-    request = yield _request(self.token, method, 'POST', params=payload)
+    request = yield self._request(method, 'POST', params=payload)
     returnValue(Message.de_json(request))
 
 
@@ -333,7 +314,7 @@ class TelegramBot:
     method = r'deleteMessage'
 
     payload = {'chat_id': str(chat_id), 'message_id': str(message_id)}
-    request = yield _request(self.token, method, 'POST', params=payload)
+    request = yield self._request(method, 'POST', params=payload)
     returnValue(request)
 
   @inlineCallbacks
@@ -347,7 +328,7 @@ class TelegramBot:
       payload['text'] = text
     if show_alert:
       payload['show_alert'] = show_alert
-    request = yield _request(self.token, method, 'POST', params=payload)
+    request = yield self._request(method, 'POST', params=payload)
     returnValue(request)
 
   @inlineCallbacks
@@ -356,7 +337,7 @@ class TelegramBot:
 
     payload = {'file_id': str(file_id)}
 
-    request = yield _request(self.token, method, 'POST', params=payload)
+    request = yield self._request(method, 'POST', params=payload)
     returnValue(File.de_json(request))
 
   def get_file_url(self, file):
@@ -393,7 +374,7 @@ class TelegramBot:
     if reply_markup:
       payload['reply_markup'] = _convert_markup(reply_markup)
 
-    request = yield _request(self.token, method, 'POST', params=payload, files=files, timeout=timeout)
+    request = yield self._request(method, 'POST', params=payload, files=files, timeout=timeout)
     returnValue(Message.de_json(request))
 
   def reply_to(self, message, text, **kwargs):
@@ -403,13 +384,29 @@ class TelegramBot:
     method = r'sendChatAction'
 
     payload = {'chat_id': chat_id, 'action': action}
-    return _make_request(self.token, method, 'POST', params=payload)
+    return self._make_request(method, 'POST', params=payload)
 
   def register_for_reply(self, message, callback):
     self.message_subscribers[message.message_id] = callback
 
   def register_next_chat_handler(self, chat_id, callback):
     self.message_next_handlers[chat_id] = callback
+
+  @inlineCallbacks
+  def _request(self, method_name, method='get', params=None, data=None, files=None, timeout=10, **kwargs):
+    result_json = yield self._make_request(method_name, method,
+                                      params=params, data=data, files=files, timeout=timeout,
+                                      **kwargs)
+    returnValue(result_json['result'])
+
+  @inlineCallbacks
+  def _make_request(self, method_name, method='get', params=None, data=None, files=None, timeout=10, **kwargs):
+    request_url = API_URL + 'bot' + self.token + '/' + method_name
+    params = _convert_utf8(params)
+
+    resp = yield treq.request(method, request_url, params=params, data=data, files=files, timeout=timeout, agent=self.agent, **kwargs)
+    result_json = yield _check_response(resp, method_name)
+    returnValue(result_json)
 
 
 class TelegramBots:
