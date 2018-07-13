@@ -77,6 +77,7 @@ class TelegramBot:
     self.token = token
     self.agent = agent
     self.last_update_id = -2 if skip_offset else -1
+    self.update_prehandlers = []
     self.message_handlers = []
     self.message_subscribers = LRUCache(maxsize=10000)
     self.message_prehandlers = []
@@ -126,6 +127,7 @@ class TelegramBot:
 
     new_messages = []
     for update in updates:
+      self._notify_update_prehandlers(update)
       if self._noisy:
         log.debug("New update. ID: {update_id}", update_id=update['update_id'])
       if update['update_id'] > self.last_update_id:
@@ -180,6 +182,10 @@ class TelegramBot:
   def process_chosen_inline_query(self, chosen_inline_result):
     if self.chosen_inline_result_handler:
       self.chosen_inline_result_handler(chosen_inline_result, self)
+
+  def _notify_update_prehandlers(self, update):
+    for handler in self.update_prehandlers:
+      handler(update, self)
 
   def _notify_message_prehandlers(self, new_messages):
     for message in new_messages:
