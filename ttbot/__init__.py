@@ -104,7 +104,7 @@ class TelegramBot:
         return
 
       try:
-        yield self.get_update(kwargs)
+        yield self.get_update(**kwargs)
 
         self.retry_update = 0
         reactor.callWhenRunning(update_bot)
@@ -421,7 +421,7 @@ class TelegramBots:
 
   def start_update(self, **kwargs):
     for bot in self.bots:
-      bot.start_update(kwargs)
+      bot.start_update(**kwargs)
 
   def stop_update(self):
     for bot in self.bots:
