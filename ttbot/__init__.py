@@ -94,7 +94,7 @@ class TelegramBot:
   def method_url(self, method):
     return API_URL + 'bot' + self.token + '/' + method
 
-  def start_update(self):
+  def start_update(self, **kwargs):
     self.running = True
 
     @inlineCallbacks
@@ -103,7 +103,7 @@ class TelegramBot:
         return
 
       try:
-        yield self.get_update()
+        yield self.get_update(kwargs)
 
         self.retry_update = 0
         reactor.callWhenRunning(update_bot)
@@ -118,8 +118,8 @@ class TelegramBot:
     self.running = False
 
   @inlineCallbacks
-  def get_update(self, timeout=20):
-    payload = {'timeout': timeout, 'offset': self.last_update_id + 1}
+  def get_update(self, timeout=20, limit=100):
+    payload = {'timeout': timeout, 'offset': self.last_update_id + 1, 'limit': limit}
     if self.allowed_updates:
       payload['allowed_updates'] = self.allowed_updates
     updates = yield self._request('getUpdates', params=payload, timeout=25)
