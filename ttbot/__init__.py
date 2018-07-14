@@ -419,9 +419,9 @@ class TelegramBots:
   def __init__(self, bots):
     self.bots = bots
 
-  def start_update(self):
+  def start_update(self, **kwargs):
     for bot in self.bots:
-      bot.start_update()
+      bot.start_update(kwargs)
 
   def stop_update(self):
     for bot in self.bots:
