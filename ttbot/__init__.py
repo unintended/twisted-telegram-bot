@@ -126,35 +126,33 @@ class TelegramBot:
       payload['allowed_updates'] = self.allowed_updates
     updates = yield self._request('getUpdates', params=payload, timeout=timeout)
 
-    new_messages = []
     for update in updates:
-      self._notify_update_prehandlers(update)
-      if self._noisy:
-        log.debug("New update. ID: {update_id}", update_id=update['update_id'])
-      if update['update_id'] > self.last_update_id:
-        self.last_update_id = update['update_id']
+      self.process_update(update)
 
-      if 'inline_query' in update.keys():
-        inline_query = InlineQuery.de_json(update['inline_query'])
-        self.process_inline_query(inline_query)
-      elif 'chosen_inline_result' in update.keys():
-        chosen_inline_result = ChosenInlineResult.de_json(update['chosen_inline_result'])
-        self.process_chosen_inline_query(chosen_inline_result)
-      elif 'message' in update.keys():
-        msg = Message.de_json(update['message'])
-        msg.bot_name = self.name
-        new_messages.append(msg)
-      elif 'callback_query' in update.keys():
-        callback_query = CallbackQuery.de_json(update['callback_query'])
-        self.process_callback_query(callback_query)
-      elif 'channel_post' in update.keys():
-        self.process_channel_post(ChannelPost(Message.de_json(update['channel_post'])))
-      else:
-        log.debug("Unknown update type: {update}",
-                  update=json.dumps(update, skipkeys=True, ensure_ascii=False, default=lambda o: o.__dict__))
-
-    if len(new_messages) > 0:
-      self.process_new_messages(new_messages)
+  def process_update(self, update):
+    self._notify_update_prehandlers(update)
+    if self._noisy:
+      log.debug("New update. ID: {update_id}", update_id=update['update_id'])
+    if update['update_id'] > self.last_update_id:
+      self.last_update_id = update['update_id']
+    if 'inline_query' in update.keys():
+      inline_query = InlineQuery.de_json(update['inline_query'])
+      self.process_inline_query(inline_query)
+    elif 'chosen_inline_result' in update.keys():
+      chosen_inline_result = ChosenInlineResult.de_json(update['chosen_inline_result'])
+      self.process_chosen_inline_query(chosen_inline_result)
+    elif 'message' in update.keys():
+      msg = Message.de_json(update['message'])
+      msg.bot_name = self.name
+      self.process_new_messages([msg])
+    elif 'callback_query' in update.keys():
+      callback_query = CallbackQuery.de_json(update['callback_query'])
+      self.process_callback_query(callback_query)
+    elif 'channel_post' in update.keys():
+      self.process_channel_post(ChannelPost(Message.de_json(update['channel_post'])))
+    else:
+      log.debug("Unknown update type: {update}",
+                update=json.dumps(update, skipkeys=True, ensure_ascii=False, default=lambda o: o.__dict__))
 
   def process_channel_post(self, channel_post):
     if self.channel_post_handler:
@@ -315,6 +313,29 @@ class TelegramBot:
     request = yield self._request(method, 'POST', params=payload)
     returnValue(Message.de_json(request))
 
+
+  @inlineCallbacks
+  def set_webhook(self, url, certificate, max_connections=None):
+    method = r'setWebhok'
+
+    payload = {'url': url}
+    files = None
+    if not is_string(certificate):
+      files = {'certificate': ('cert', certificate)}
+    else:
+      payload['certificate'] = certificate
+    if max_connections:
+      payload['max_connections'] = max_connections
+    if self.allowed_updates:
+      payload['allowed_updates'] = self.allowed_updates
+
+    self._make_request(method, 'POST', params=payload, files=files)
+
+  @inlineCallbacks
+  def delete_webhook(self):
+    method = r'deleteWebhok'
+
+    self._make_request(method, 'POST')
 
   @inlineCallbacks
   def delete_message(self, chat_id, message_id):
