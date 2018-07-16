@@ -119,11 +119,11 @@ class TelegramBot:
     self.running = False
 
   @inlineCallbacks
-  def get_update(self, timeout=20):
-    payload = {'timeout': timeout, 'offset': self.last_update_id + 1}
+  def get_update(self, telegram_timeout=10, timeout=None):
+    payload = {'timeout': telegram_timeout, 'offset': self.last_update_id + 1}
     if self.allowed_updates:
       payload['allowed_updates'] = self.allowed_updates
-    updates = yield self._request('getUpdates', params=payload, timeout=25)
+    updates = yield self._request('getUpdates', params=payload, timeout=timeout)
 
     new_messages = []
     for update in updates:
@@ -358,7 +358,7 @@ class TelegramBot:
                  caption=None,
                  reply_to_message_id=None,
                  reply_markup=None,
-                 timeout=30):
+                 timeout=None):
     method = r'sendAudio'
 
     payload = {'chat_id': chat_id}
@@ -399,16 +399,19 @@ class TelegramBot:
     self.message_next_handlers[chat_id] = callback
 
   @inlineCallbacks
-  def _request(self, method_name, method='get', params=None, data=None, files=None, timeout=10, **kwargs):
+  def _request(self, method_name, method='get', params=None, data=None, files=None, timeout=None, **kwargs):
     result_json = yield self._make_request(method_name, method,
                                       params=params, data=data, files=files, timeout=timeout,
                                       **kwargs)
     returnValue(result_json['result'])
 
   @inlineCallbacks
-  def _make_request(self, method_name, method='get', params=None, data=None, files=None, timeout=10, **kwargs):
+  def _make_request(self, method_name, method='get', params=None, data=None, files=None, timeout=None, **kwargs):
     request_url = API_URL + 'bot' + self.token + '/' + method_name
     params = _convert_utf8(params)
+
+    if timeout is None:
+      timeout = self.timeout
 
     resp = yield treq.request(method, request_url, params=params, data=data, files=files, timeout=timeout, agent=self.agent, **kwargs)
     result_json = yield _check_response(resp, method_name)
