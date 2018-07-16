@@ -314,9 +314,8 @@ class TelegramBot:
     returnValue(Message.de_json(request))
 
 
-  @inlineCallbacks
   def set_webhook(self, url, certificate, max_connections=None):
-    method = r'setWebhok'
+    method = r'setWebhook'
 
     payload = {'url': url}
     files = None
@@ -329,13 +328,12 @@ class TelegramBot:
     if self.allowed_updates:
       payload['allowed_updates'] = self.allowed_updates
 
-    self._make_request(method, 'POST', params=payload, files=files)
+    return self._make_request(method, 'POST', params=payload, files=files)
 
-  @inlineCallbacks
   def delete_webhook(self):
-    method = r'deleteWebhok'
+    method = r'deleteWebhook'
 
-    self._make_request(method, 'POST')
+    return self._make_request(method, 'POST')
 
   @inlineCallbacks
   def delete_message(self, chat_id, message_id):
