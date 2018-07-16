@@ -72,7 +72,7 @@ def _convert_markup(reply_markup):
 
 
 class TelegramBot:
-  def __init__(self, token, name, skip_offset=False, allowed_updates=None, agent=None):
+  def __init__(self, token, name, skip_offset=False, allowed_updates=None, agent=None, timeout=None):
     self.name = name
     self.token = token
     self.agent = agent
@@ -90,6 +90,7 @@ class TelegramBot:
     self.chosen_inline_result_handler = None
     self.channel_post_handler = None
     self.botan = None
+    self.timeout = timeout
     self._noisy = False
 
   def method_url(self, method):
