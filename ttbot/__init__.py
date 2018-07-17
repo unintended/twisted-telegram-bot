@@ -108,11 +108,10 @@ class TelegramBot:
         yield self.get_update(**kwargs)
 
         self.retry_update = 0
-        reactor.callWhenRunning(update_bot)
       except:
         log.failure("Couldn't get updates. Delaying for %d seconds" % self.retry_update)
-        reactor.callLater(self.retry_update, update_bot)
         self.retry_update = min(self.retry_update + 3, 20)
+      reactor.callLater(self.retry_update, update_bot)
 
     reactor.callWhenRunning(update_bot)
 
