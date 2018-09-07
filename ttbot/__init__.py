@@ -89,6 +89,7 @@ class TelegramBot:
     self.callback_query_handler = None
     self.chosen_inline_result_handler = None
     self.channel_post_handler = None
+    self.on_updated_listener = None
     self.botan = None
     self.timeout = timeout
     self._noisy = False
@@ -124,6 +125,9 @@ class TelegramBot:
     if self.allowed_updates:
       payload['allowed_updates'] = self.allowed_updates
     updates = yield self._request('getUpdates', params=payload, timeout=timeout)
+
+    if self.on_updated_listener:
+      self.on_updated_listener(len(updates))
 
     for update in updates:
       self.process_update(update)
