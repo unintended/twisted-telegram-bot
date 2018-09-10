@@ -90,6 +90,7 @@ class TelegramBot:
     self.chosen_inline_result_handler = None
     self.channel_post_handler = None
     self.on_updated_listener = None
+    self.on_api_request_listener = None
     self.botan = None
     self.timeout = timeout
     self._noisy = False
@@ -423,6 +424,8 @@ class TelegramBot:
 
   @inlineCallbacks
   def _request(self, method_name, method='get', params=None, data=None, files=None, timeout=None, **kwargs):
+    if self.on_api_request_listener:
+      self.on_api_request_listener(method_name)
     result_json = yield self._make_request(method_name, method,
                                       params=params, data=data, files=files, timeout=timeout,
                                       **kwargs)
