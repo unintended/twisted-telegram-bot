@@ -97,7 +97,7 @@ class TelegramBot:
   def method_url(self, method):
     return API_URL + 'bot' + self.token + '/' + method
 
-  def start_update(self, **kwargs):
+  def start_update(self, default_delay=0, **kwargs):
     self.running = True
 
     @inlineCallbacks
@@ -108,9 +108,9 @@ class TelegramBot:
       try:
         yield self.get_update(**kwargs)
 
-        self.retry_update = 0
+        self.retry_update = default_delay
       except:
-        log.failure("Couldn't get updates. Delaying for %d seconds" % self.retry_update)
+        log.failure("Couldn't get updates. Delaying for {delay} seconds", delay=self.retry_update)
         self.retry_update = min(self.retry_update + 3, 20)
       reactor.callLater(self.retry_update, update_bot)
 
