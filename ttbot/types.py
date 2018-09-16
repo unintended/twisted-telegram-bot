@@ -147,6 +147,9 @@ class Message(JsonDeserializable):
     for key in options:
       setattr(self, key, options[key])
 
+  def __repr__(self):
+    return "Message #%d" % self.message_id
+
 
 class PhotoSize(JsonDeserializable):
   @classmethod

@@ -1,11 +1,12 @@
 import json
 import collections
 import re
+from itertools import groupby
 
 import treq
 from cachetools import LRUCache
 from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, Deferred, DeferredList
 from twisted.logger import Logger
 
 from ttbot.types import Message, InlineQuery, ChosenInlineResult, JsonSerializable, CallbackQuery, File, ChannelPost
@@ -71,6 +72,16 @@ def _convert_markup(reply_markup):
     return json.dumps(reply_markup)
 
 
+def _map_function_to_deferred(f, *args, **kwargs):
+  rv = f(*args, **kwargs)
+  if isinstance(rv, Deferred):
+    return rv
+  else:
+    d = Deferred()
+    d.callback(rv)
+    return d
+
+
 class TelegramBot:
   def __init__(self, token, name, skip_offset=False, allowed_updates=None, agent=None, timeout=None):
     self.name = name
@@ -130,53 +141,94 @@ class TelegramBot:
     if self.on_updated_listener:
       self.on_updated_listener(len(updates))
 
+    max_update_id = -1
+    inline_queries = []
+    chosen_inline_results = []
+    callback_queries = []
+    channel_posts = []
+    messages = []
+
     for update in updates:
-      self.process_update(update)
+      if self._noisy:
+        log.debug("New update. ID: {update_id}", update_id=update['update_id'])
+      self._notify_update_prehandlers(update)
 
-  def process_update(self, update):
-    self._notify_update_prehandlers(update)
-    if self._noisy:
-      log.debug("New update. ID: {update_id}", update_id=update['update_id'])
-    if update['update_id'] > self.last_update_id:
-      self.last_update_id = update['update_id']
-    if 'inline_query' in update.keys():
-      inline_query = InlineQuery.de_json(update['inline_query'])
-      self.process_inline_query(inline_query)
-    elif 'chosen_inline_result' in update.keys():
-      chosen_inline_result = ChosenInlineResult.de_json(update['chosen_inline_result'])
-      self.process_chosen_inline_query(chosen_inline_result)
-    elif 'message' in update.keys():
-      msg = Message.de_json(update['message'])
-      msg.bot_name = self.name
-      self.process_new_messages([msg])
-    elif 'callback_query' in update.keys():
-      callback_query = CallbackQuery.de_json(update['callback_query'])
-      self.process_callback_query(callback_query)
-    elif 'channel_post' in update.keys():
-      self.process_channel_post(ChannelPost(Message.de_json(update['channel_post'])))
+      if 'inline_query' in update:
+        inline_queries.append(InlineQuery.de_json(update['inline_query']))
+      elif 'chosen_inline_result' in update:
+        chosen_inline_results.append(ChosenInlineResult.de_json(update['chosen_inline_result']))
+      elif 'callback_query' in update:
+        callback_queries.append(CallbackQuery.de_json(update['callback_query']))
+      elif 'channel_post' in update:
+        channel_posts.append(ChannelPost(Message.de_json(update['channel_post'])))
+      elif 'message' in update:
+        msg = Message.de_json(update['message'])
+        msg.bot_name = self.name  # FIXME: a hack
+        messages.append(msg)
+      else:
+        log.debug("Unsupported update type: {update}",
+                  update=json.dumps(update, skipkeys=True, ensure_ascii=False, default=lambda o: o.__dict__))
+
+      if update['update_id'] > max_update_id:
+        max_update_id = update['update_id']
+
+    yield self.process_updates(inline_queries, chosen_inline_results, callback_queries, channel_posts, messages)
+
+    self.last_update_id = max_update_id
+
+  def process_updates(self, inline_queries, chosen_inline_results, callback_queries, channel_posts, messages):
+    return DeferredList(
+      [
+        self.process_updates_parallel_with_handler(self.inline_query_handler, inline_queries, self),
+        self.process_updates_parallel_with_handler(self.chosen_inline_result_handler, chosen_inline_results, self),
+
+        # TODO: maybe callback_queries and channel_posts need to be processed one by one (is order important?)
+        self.process_updates_parallel_with_handler(self.callback_query_handler, callback_queries, self),
+        self.process_updates_parallel_with_handler(self.channel_post_handler, channel_posts, self),
+
+        self.process_messages(messages)
+      ]
+    )
+
+  @staticmethod
+  def process_updates_parallel_with_handler(handler, updates, *args, **kwargs):
+    if handler is not None and updates:
+      return DeferredList([_map_function_to_deferred(handler, update, *args, **kwargs) for update in updates])
     else:
-      log.debug("Unknown update type: {update}",
-                update=json.dumps(update, skipkeys=True, ensure_ascii=False, default=lambda o: o.__dict__))
+      d = Deferred()
+      d.callback(None)
+      return d
 
-  def process_channel_post(self, channel_post):
-    if self.channel_post_handler:
-      self.channel_post_handler(channel_post, self)
+  def process_message(self, message):
+    # synchronously notify prehandlers
+    self._notify_message_prehandlers(message)
 
-  def process_callback_query(self, callback_query):
-    if self.callback_query_handler:
-      self.callback_query_handler(callback_query, self)
+    message_subscriber_handler_function = self._find_message_subscriber_handler_function(message)
+    if message_subscriber_handler_function is not None:
+      return _map_function_to_deferred(message_subscriber_handler_function, message, self)
 
-  def process_new_messages(self, new_messages):
-    self._notify_message_prehandlers(new_messages)
+    message_next_handler = self._find_message_next_handler(message)
+    if message_next_handler is not None:
+      return _map_function_to_deferred(message_next_handler, message, self)
 
-    not_processed = []
-    for message in new_messages:
-      if not self._notify_message_next_handler(message):
-        not_processed.append(message)
-    new_messages = not_processed
+    command_handler_function = self._find_command_handler_function(message)
+    if command_handler_function is not None:
+      return _map_function_to_deferred(command_handler_function, message, self)
 
-    self._notify_command_handlers(new_messages)
-    self._notify_message_subscribers(new_messages)
+  @inlineCallbacks
+  def process_messages_in_order(self, messages):
+    for message in messages:
+      yield self.process_message(message)
+
+  def process_messages(self, messages):
+    if messages:
+      return DeferredList([self.process_messages_in_order(messages_group[1])
+                           for messages_group
+                           in groupby(sorted(messages, key=lambda m: m.chat.id), key=lambda m: m.chat.id)])
+    else:
+      d = Deferred()
+      d.callback(None)
+      return d
 
   def process_inline_query(self, inline_query):
     if self.inline_query_handler:
@@ -190,33 +242,23 @@ class TelegramBot:
     for handler in self.update_prehandlers:
       handler(update, self)
 
-  def _notify_message_prehandlers(self, new_messages):
-    for message in new_messages:
-      for handler in self.message_prehandlers:
-        handler(message, self)
-
-  def _notify_command_handlers(self, new_messages):
-    for message in new_messages:
-      for message_handler in self.message_handlers:
-        if self._test_message_handler(message_handler, message):
-          message_handler['function'](message, self)
-          break
-
-  def _notify_message_subscribers(self, new_messages):
-    for message in new_messages:
-      if not hasattr(message, 'reply_to_message'):
-        continue
-
-      handler = self.message_subscribers.pop(message.reply_to_message.message_id, None)
-      if handler is not None:
-        handler(message, self)
-
-  def _notify_message_next_handler(self, message):
-    handler = self.message_next_handlers.pop(message.chat.id, None)
-    if handler is not None:
+  def _notify_message_prehandlers(self, message):
+    for handler in self.message_prehandlers:
       handler(message, self)
-      return True
-    return False
+
+  def _find_command_handler_function(self, message):
+    for message_handler in self.message_handlers:
+      if self._test_message_handler(message_handler, message):
+        return message_handler['function']
+    return None
+
+  def _find_message_subscriber_handler_function(self, message):
+    if not hasattr(message, 'reply_to_message'):
+      return None
+    return self.message_subscribers.pop(message.reply_to_message.message_id, None)
+
+  def _find_message_next_handler(self, message):
+    return self.message_next_handlers.pop(message.chat.id, None)
 
   def register_message_handler(self, fn, commands=None, regexp=None, func=None, content_types=None):
     if not content_types:
@@ -316,7 +358,6 @@ class TelegramBot:
       payload['parse_mode'] = parse_mode
     request = yield self._request(method, 'POST', params=payload)
     returnValue(Message.de_json(request))
-
 
   def set_webhook(self, url, certificate, max_connections=None):
     method = r'setWebhook'
@@ -427,8 +468,8 @@ class TelegramBot:
     if self.on_api_request_listener:
       self.on_api_request_listener(method_name)
     result_json = yield self._make_request(method_name, method,
-                                      params=params, data=data, files=files, timeout=timeout,
-                                      **kwargs)
+                                           params=params, data=data, files=files, timeout=timeout,
+                                           **kwargs)
     returnValue(result_json['result'])
 
   @inlineCallbacks
@@ -439,7 +480,8 @@ class TelegramBot:
     if timeout is None:
       timeout = self.timeout
 
-    resp = yield treq.request(method, request_url, params=params, data=data, files=files, timeout=timeout, agent=self.agent, **kwargs)
+    resp = yield treq.request(method, request_url, params=params, data=data, files=files, timeout=timeout,
+                              agent=self.agent, **kwargs)
     result_json = yield _check_response(resp, method_name)
     returnValue(result_json)
 
