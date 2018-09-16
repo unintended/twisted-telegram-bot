@@ -486,27 +486,6 @@ class TelegramBot:
     returnValue(result_json)
 
 
-class TelegramBots:
-  def __init__(self, bots):
-    self.bots = bots
-
-  def start_update(self, **kwargs):
-    for bot in self.bots:
-      bot.start_update(**kwargs)
-
-  def stop_update(self):
-    for bot in self.bots:
-      bot.stop_update()
-
-  def message_handler(self, commands=None, regexp=None, func=None, content_types=None):
-    def decorator(fn):
-      for bot in self.bots:
-        bot.register_message_handler(fn, commands, regexp, func, content_types)
-      return fn
-
-    return decorator
-
-
 class ApiException(Exception):
   def __init__(self, msg, method_name, result):
     super(ApiException, self).__init__("A request to the Telegram API was unsuccessful. {0}".format(msg))
