@@ -82,7 +82,7 @@ def _map_function_to_deferred(f, *args, **kwargs):
     return d
 
 
-class TelegramBot:
+class TelegramBot(object):
   def __init__(self, token, name, skip_offset=False, allowed_updates=None, agent=None, timeout=None):
     self.name = name
     self.token = token
