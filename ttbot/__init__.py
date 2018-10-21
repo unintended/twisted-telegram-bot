@@ -327,14 +327,15 @@ class TelegramBot(object):
                              next_offset='',
                              switch_pm_text=None,
                              switch_pm_parameter=None):
-    if isinstance(results, telegram.InlineQueryResult):
-      results_json = results.to_json()
-    else:
-      results_json = json.dumps(results, ensure_ascii=False)
+    def _map_result(result):
+      if isinstance(result, telegram.InlineQueryResult):
+        return result.to_json()
+      else:
+        return json.dumps(result)
 
     payload = {
       'inline_query_id': str(query_id),
-      'results': results_json,
+      'results': [_map_result(res) for res in results],
       'is_personal': personal,
       'next_offset': next_offset
     }
