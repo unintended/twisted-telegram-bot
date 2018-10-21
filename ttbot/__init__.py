@@ -4,6 +4,7 @@ import re
 from itertools import groupby
 
 import treq
+import telegram
 from cachetools import LRUCache
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue, Deferred, DeferredList
@@ -326,9 +327,14 @@ class TelegramBot(object):
                              next_offset='',
                              switch_pm_text=None,
                              switch_pm_parameter=None):
+    if isinstance(results, telegram.InlineQueryResult):
+      results_json = results.to_json()
+    else:
+      results_json = json.dumps(results, ensure_ascii=False)
+
     payload = {
       'inline_query_id': str(query_id),
-      'results': json.dumps(results, ensure_ascii=False),
+      'results': results_json,
       'is_personal': personal,
       'next_offset': next_offset
     }

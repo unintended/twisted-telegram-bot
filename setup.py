@@ -14,6 +14,7 @@ setup(
   license='MIT',
   packages=packages,
   install_requires=[
+    'python-telegram-bot',
     'cachetools',
     'twisted',
     'treq',
