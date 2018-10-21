@@ -321,7 +321,6 @@ class TelegramBot(object):
     request = yield self._request(method, 'POST', params=payload)
     returnValue(Message.de_json(request))
 
-  @inlineCallbacks
   def answer_to_inline_query(self, query_id, results,
                              personal=False,
                              next_offset='',
@@ -329,13 +328,13 @@ class TelegramBot(object):
                              switch_pm_parameter=None):
     def _map_result(result):
       if isinstance(result, telegram.InlineQueryResult):
-        return result.to_json()
+        return result.to_dict()
       else:
-        return json.dumps(result)
+        return result
 
     payload = {
       'inline_query_id': str(query_id),
-      'results': [_map_result(res) for res in results],
+      'results': json.dumps([_map_result(res) for res in results]),
       'is_personal': personal,
       'next_offset': next_offset
     }
@@ -343,8 +342,7 @@ class TelegramBot(object):
       payload['switch_pm_text'] = switch_pm_text
     if switch_pm_parameter:
       payload['switch_pm_parameter'] = switch_pm_parameter
-    request = yield self._request('answerInlineQuery', 'POST', params=payload)
-    returnValue(request)
+    return self._request('answerInlineQuery', 'POST', params=payload)
 
   @inlineCallbacks
   def edit_message_text(self, chat_id, message_id, text,
