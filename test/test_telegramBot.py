@@ -7,7 +7,7 @@ from ttbot.types import User
 
 class TestTelegramBot(TestCase):
   def test_process_messages(self):
-    bot = TelegramBot("ff", "botname")
+    bot = TelegramBot("111:ff", "botname")
 
     messages = [
       Message(1, None, None, User(1, None), None, {}),
