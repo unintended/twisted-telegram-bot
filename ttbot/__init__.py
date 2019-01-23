@@ -141,7 +141,7 @@ class TelegramBot(object):
     updates = yield self._request('getUpdates', params=payload, timeout=timeout)
 
     if self.on_updated_listener:
-      self.on_updated_listener(len(updates))
+      self.on_updated_listener(updates)
 
     max_update_id = -1
     inline_queries = []
